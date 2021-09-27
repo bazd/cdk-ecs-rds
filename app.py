@@ -13,6 +13,7 @@ from aws_cdk import (
                     aws_ecs as ecs,
                     aws_ecs_patterns as ecs_patterns,
                     core as cdk,
+                    aws_rds as rds,
                     )
 
 # Name of the image from DockerHub to use for the Fargate service
@@ -31,7 +32,7 @@ class TcaStack(cdk.Stack):
         # Construct for an ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
-        # Construct for Fargate service from techchallengeapp in Dockerhub
+        # Construct for Fargate service
         ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "TcaService",
@@ -43,6 +44,26 @@ class TcaStack(cdk.Stack):
                 image=ecs.ContainerImage.from_registry(image)),
             memory_limit_mib=512,
             public_load_balancer=True)
+
+        # Construct for RDS postgres instance
+        rds.DatabaseInstance(
+                    self, "TcaDatabase",
+                    database_name="app",
+                    engine=rds.DatabaseInstanceEngine.postgres(
+                        version=rds.PostgresEngineVersion.VER_10_17
+                    ),
+                    vpc=vpc,
+                    port=5432,
+                    instance_type=ec2.InstanceType.of(
+                        ec2.InstanceClass.BURSTABLE2,
+                        ec2.InstanceSize.MICRO,
+                    ),
+                    allocated_storage=20,
+                    multi_az=True,
+                    removal_policy=cdk.RemovalPolicy.DESTROY,
+                    deletion_protection=False,
+                    backup_retention=cdk.Duration.days(1),
+                ),
 
 
 # Create the app
