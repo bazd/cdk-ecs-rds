@@ -9,7 +9,7 @@ setuptools.setup(
     name="cdk_ecs_rds",
     version="0.0.1",
 
-    description="An empty CDK Python app",
+    description="Servian Tech Challenge App",
     long_description=long_description,
     long_description_content_type="text/markdown",
 
