@@ -58,6 +58,7 @@ class TcaStack(cdk.Stack):
                         ec2.InstanceClass.BURSTABLE2,
                         ec2.InstanceSize.MICRO,
                     ),
+                    allocated_storage=20,
                     removal_policy=cdk.RemovalPolicy.DESTROY,
                     deletion_protection=False
                 ),
