@@ -1,37 +1,51 @@
 #!/usr/bin/env python3
+
+"""
+AWS CDK definition to run the Servian Tech Challenge App
+https://github.com/servian/TechChallengeApp
+By Barry Dawson
+"""
+
 import os
 
-from aws_cdk import core as cdk
+from aws_cdk import (
+                    aws_ec2 as ec2,
+                    aws_ecs as ecs,
+                    aws_ecs_patterns as ecs_patterns,
+                    core as cdk,
+                    )
 
-# For consistency with TypeScript code, `cdk` is the preferred import name for
-# the CDK's core module.  The following line also imports it as `core` for use
-# with examples from the CDK Developer's Guide, which are in the process of
-# being updated to use `cdk`.  You may delete this import if you don't need it.
-from aws_cdk import core
+# Name of the image from DockerHub to use for the Fargate service
+image = "servian/techchallengeapp"
 
-from cdk_ecs_rds.cdk_ecs_rds_stack import CdkEcsRdsStack
 
-app = core.App()
-CdkEcsRdsStack(
-    app,
-    "CdkEcsRdsStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
+# Definition of resources needed to run the app
+class TcaStack(cdk.Stack):
+    def __init__(self, scope: cdk.Construct, construct_id: str,
+                 **kwargs) -> None:
+        super().__init__(scope, construct_id, **kwargs)
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+        # Construct for VPC with 2 AZs, each with private and public subnets
+        vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
 
-    # env=core.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'),
-    #                      region=os.getenv('CDK_DEFAULT_REGION')),
+        # Construct for an ECS cluster
+        cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+        # Construct for Fargate service from techchallengeapp in Dockerhub
+        ecs_patterns.ApplicationLoadBalancedFargateService(
+            self,
+            "TcaService",
+            cluster=cluster,
+            cpu=256,
+            desired_count=1,
+            task_image_options=ecs_patterns.
+            ApplicationLoadBalancedTaskImageOptions(
+                image=ecs.ContainerImage.from_registry(image)),
+            memory_limit_mib=512,
+            public_load_balancer=True)
 
-    # env=core.Environment(account='123456789012', region='us-east-1'),
 
-    # For more information, see
-    # https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-)
-
+# Create the app
+app = cdk.App()
+TcaStack(app, "TcaStack")
 app.synth()
