@@ -32,7 +32,7 @@ class TcaStack(cdk.Stack):
         # Construct for an ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
-        # Construct for Fargate service from techchallengeapp in Dockerhub
+        # Construct for Fargate service
         ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "TcaService",
@@ -59,6 +59,7 @@ class TcaStack(cdk.Stack):
                         ec2.InstanceSize.MICRO,
                     ),
                     allocated_storage=20,
+                    multi_az=True,
                     removal_policy=cdk.RemovalPolicy.DESTROY,
                     deletion_protection=False
                 ),
