@@ -61,7 +61,8 @@ class TcaStack(cdk.Stack):
                     allocated_storage=20,
                     multi_az=True,
                     removal_policy=cdk.RemovalPolicy.DESTROY,
-                    deletion_protection=False
+                    deletion_protection=False,
+                    backup_retention=cdk.Duration.days(1),
                 ),
 
 
