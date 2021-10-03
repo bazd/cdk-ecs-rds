@@ -11,8 +11,9 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_ecs_patterns as ecs_patterns,
-    core as cdk,
     aws_rds as rds,
+    aws_secretsmanager as secretsmanager,
+    core as cdk,
 )
 
 # Name of the image from DockerHub to use for the Fargate service
@@ -31,9 +32,13 @@ class TcaStack(cdk.Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Secret for RDS
+
+
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
 
+        """
         # ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
@@ -62,6 +67,7 @@ class TcaStack(cdk.Stack):
             scale_in_cooldown=cdk.Duration.seconds(60),
             scale_out_cooldown=cdk.Duration.seconds(60),
         )
+        """
 
         # RDS postgres instance
         rds.DatabaseInstance(
@@ -77,7 +83,7 @@ class TcaStack(cdk.Stack):
                 ec2.InstanceSize.MICRO,
             ),
             allocated_storage=20,
-            multi_az=True,
+            multi_az=False,
             removal_policy=cdk.RemovalPolicy.DESTROY,
             deletion_protection=False,
             backup_retention=cdk.Duration.days(1),
