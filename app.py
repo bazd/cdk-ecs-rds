@@ -16,7 +16,13 @@ from aws_cdk import (
 )
 
 # Name of the image from DockerHub to use for the Fargate service
-image = "servian/techchallengeapp"
+IMAGE = "servian/techchallengeapp"
+
+# AWS tags to assign to all taggable resources
+STACK_TAGS = {
+    "app": "tech-challenge-app",
+    "environment": "poc",
+}
 
 
 # Definition of resources needed to run the app
@@ -40,7 +46,7 @@ class TcaStack(cdk.Stack):
             desired_count=1,
             task_image_options=ecs_patterns.
             ApplicationLoadBalancedTaskImageOptions(
-                image=ecs.ContainerImage.from_registry(image)),
+                image=ecs.ContainerImage.from_registry(IMAGE)),
             memory_limit_mib=512,
             public_load_balancer=True,
         )
@@ -80,5 +86,5 @@ class TcaStack(cdk.Stack):
 
 # Create the app
 app = cdk.App()
-TcaStack(app, "TcaStack")
+TcaStack(app, "TcaStack", tags=STACK_TAGS)
 app.synth()
