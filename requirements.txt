@@ -52,6 +52,7 @@ aws-cdk.custom-resources==1.124.0
 aws-cdk.cx-api==1.124.0
 aws-cdk.region-info==1.124.0
 aws-rds==0.0.2
+aws-secretsmanager==0.1.1
 boto3==1.18.48
 botocore==1.21.48
 cattrs==1.8.0
