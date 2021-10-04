@@ -45,6 +45,27 @@ class TcaStack(cdk.Stack):
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
 
+        # RDS postgres instance on private subnet
+        rds_instance = rds.DatabaseInstance(
+            self,
+            "TcaDatabase",
+            database_name="app",
+            engine=rds.DatabaseInstanceEngine.postgres(
+                version=rds.PostgresEngineVersion.VER_10_17),
+            vpc=vpc,
+            port=5432,
+            instance_type=ec2.InstanceType.of(
+                ec2.InstanceClass.BURSTABLE2,
+                ec2.InstanceSize.MICRO,
+            ),
+            allocated_storage=20,
+            multi_az=False,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            deletion_protection=False,
+            backup_retention=cdk.Duration.days(1),
+            credentials=rds.Credentials.from_secret(rds_secret)
+        )
+
         # ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
@@ -56,12 +77,16 @@ class TcaStack(cdk.Stack):
         container = task_definition.add_container(
             "TcaContainer",
             image=image,
+            environment={
+                "VTT_DBHOST": rds_instance.db_instance_endpoint_address
+            },
             secrets={
                 "VTT_DBUSER": ecs.Secret.from_secrets_manager(
                     rds_secret, "username"),
                 "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
                     rds_secret, "password"),
             },
+            command=["updatedb", "-s"],
             logging=log_driver,
         )
         port_mapping = ecs.PortMapping(container_port=3000)
@@ -87,27 +112,6 @@ class TcaStack(cdk.Stack):
             target_utilization_percent=50,
             scale_in_cooldown=cdk.Duration.seconds(60),
             scale_out_cooldown=cdk.Duration.seconds(60),
-        )
-
-        # RDS postgres instance on private subnet
-        rds.DatabaseInstance(
-            self,
-            "TcaDatabase",
-            database_name="app",
-            engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_10_17),
-            vpc=vpc,
-            port=5432,
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE2,
-                ec2.InstanceSize.MICRO,
-            ),
-            allocated_storage=20,
-            multi_az=False,
-            removal_policy=cdk.RemovalPolicy.DESTROY,
-            deletion_protection=False,
-            backup_retention=cdk.Duration.days(1),
-            credentials=rds.Credentials.from_secret(rds_secret)
         )
 
 
