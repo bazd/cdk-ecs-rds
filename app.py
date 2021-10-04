@@ -16,9 +16,9 @@ from aws_cdk import (
     core as cdk,
 )
 
-DB_USER = "postgres"  # Database user name
-IMAGE = "servian/techchallengeapp"  # Dockerhub image to use
-STACK_TAGS = {  # Tags to assign to all taggable resources
+
+# Tags to assign to all taggable resources
+STACK_TAGS = {
     "app": "tech-challenge-app",
     "environment": "poc",
 }
@@ -31,7 +31,7 @@ class TcaStack(cdk.Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # Generate secure password in secrets manager for RDS
-        secret_template = {"username": DB_USER}
+        secret_template = {"username": "postgres"}
         rds_secret = secretsmanager.Secret(
             self,
             "TcaRdsSecret",
@@ -46,44 +46,8 @@ class TcaStack(cdk.Stack):
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
 
-        # ECS cluster
-        cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
-
-        # Fargate service and task
-        tca_service = ecs_patterns.ApplicationLoadBalancedFargateService(
-            self,
-            "TcaService",
-            cluster=cluster,
-            cpu=256,
-            desired_count=1,
-            task_image_options=ecs_patterns.
-            ApplicationLoadBalancedTaskImageOptions(
-                image=ecs.ContainerImage.from_registry(IMAGE),
-                secrets={
-                    "VTT_DBUSER": ecs.Secret.from_secrets_manager(
-                                                    rds_secret, "username"),
-                    "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
-                                                    rds_secret, "password"),
-                },
-            ),
-            memory_limit_mib=512,
-            public_load_balancer=True,
-        )
-
-        # Fargate service auto scaling
-        scaling = tca_service.service.auto_scale_task_count(
-            min_capacity=1,
-            max_capacity=2,
-        )
-        scaling.scale_on_cpu_utilization(
-            "CpuScaling",
-            target_utilization_percent=50,
-            scale_in_cooldown=cdk.Duration.seconds(60),
-            scale_out_cooldown=cdk.Duration.seconds(60),
-        )
-
         # RDS postgres instance on private subnet
-        rds.DatabaseInstance(
+        rds_instance = rds.DatabaseInstance(
             self,
             "TcaDatabase",
             database_name="app",
@@ -101,6 +65,56 @@ class TcaStack(cdk.Stack):
             deletion_protection=False,
             backup_retention=cdk.Duration.days(1),
             credentials=rds.Credentials.from_secret(rds_secret)
+        )
+
+        # ECS cluster
+        cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
+
+        # Fargate task definition
+        task_definition = ecs.FargateTaskDefinition(
+            self, "TcaTask", cpu=256, memory_limit_mib=512)
+        image = ecs.ContainerImage.from_registry("servian/techchallengeapp")
+        log_driver = ecs.LogDriver.aws_logs(stream_prefix="tca")
+        container = task_definition.add_container(
+            "TcaContainer",
+            image=image,
+            environment={
+                "VTT_DBHOST": rds_instance.db_instance_endpoint_address,
+                "VTT_LISTENPORT": "80",
+            },
+            secrets={
+                "VTT_DBUSER": ecs.Secret.from_secrets_manager(
+                    rds_secret, "username"),
+                "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
+                    rds_secret, "password"),
+            },
+            # command=["updatedb", "-s"],
+            command=["serve"],
+            logging=log_driver,
+        )
+        port_mapping = ecs.PortMapping(container_port=80)
+        container.add_port_mappings(port_mapping)
+
+        # Fargate service
+        service = ecs_patterns.ApplicationLoadBalancedFargateService(
+            self,
+            "TcaService",
+            cluster=cluster,
+            task_definition=task_definition,
+            desired_count=1,
+            public_load_balancer=True,
+        )
+
+        # Fargate service auto scaling
+        scaling = service.service.auto_scale_task_count(
+            min_capacity=1,
+            max_capacity=2,
+        )
+        scaling.scale_on_cpu_utilization(
+            "CpuScaling",
+            target_utilization_percent=50,
+            scale_in_cooldown=cdk.Duration.seconds(60),
+            scale_out_cooldown=cdk.Duration.seconds(60),
         )
 
 
