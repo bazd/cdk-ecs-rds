@@ -45,8 +45,10 @@ class TcaStack(cdk.Stack):
             generate_secret_string=secretsmanager.SecretStringGenerator(
                 secret_string_template=json.dumps(secret_template),
                 generate_string_key="password",
+                exclude_punctuation=True,
             )
         )
+
         """
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
@@ -100,7 +102,7 @@ class TcaStack(cdk.Stack):
             removal_policy=cdk.RemovalPolicy.DESTROY,
             deletion_protection=False,
             backup_retention=cdk.Duration.days(1),
-            credentials=rds.Credentials.from_secret_name_v2(rds_secret.secret_name)
+            credentials=rds.Credentials.from_secret(rds_secret)
         )
         """
 
