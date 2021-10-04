@@ -86,7 +86,8 @@ class TcaStack(cdk.Stack):
                 "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
                     rds_secret, "password"),
             },
-            command=["updatedb", "-s"],
+            # command=["updatedb", "-s"],
+            command=["serve"],
             logging=log_driver,
         )
         port_mapping = ecs.PortMapping(container_port=3000)
