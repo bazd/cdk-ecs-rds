@@ -6,7 +6,6 @@ By Barry Dawson
 """
 
 import json
-import os
 
 from aws_cdk import (
     aws_ec2 as ec2,
@@ -17,14 +16,9 @@ from aws_cdk import (
     core as cdk,
 )
 
-# Name of RDS database user
-DB_USER = "postgres"
-
-# Name of the image from DockerHub to use for the Fargate service
-IMAGE = "servian/techchallengeapp"
-
-# AWS tags to assign to all taggable resources
-STACK_TAGS = {
+DB_USER = "postgres"  # Database user name
+IMAGE = "servian/techchallengeapp"  # Dockerhub image to use
+STACK_TAGS = {  # Tags to assign to all taggable resources
     "app": "tech-challenge-app",
     "environment": "poc",
 }
@@ -36,7 +30,7 @@ class TcaStack(cdk.Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Secret for RDS username and password
+        # Generate secure password in secrets manager for RDS
         secret_template = {"username": DB_USER}
         rds_secret = secretsmanager.Secret(
             self,
@@ -49,15 +43,13 @@ class TcaStack(cdk.Stack):
             )
         )
 
-        """
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
-
 
         # ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
-        # Fargate service
+        # Fargate service and task
         tca_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "TcaService",
@@ -66,7 +58,14 @@ class TcaStack(cdk.Stack):
             desired_count=1,
             task_image_options=ecs_patterns.
             ApplicationLoadBalancedTaskImageOptions(
-                image=ecs.ContainerImage.from_registry(IMAGE)),
+                image=ecs.ContainerImage.from_registry(IMAGE),
+                secrets={
+                    "VTT_DBUSER": ecs.Secret.from_secrets_manager(
+                                                    rds_secret, "username"),
+                    "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
+                                                    rds_secret, "password"),
+                },
+            ),
             memory_limit_mib=512,
             public_load_balancer=True,
         )
@@ -83,8 +82,7 @@ class TcaStack(cdk.Stack):
             scale_out_cooldown=cdk.Duration.seconds(60),
         )
 
-
-        # RDS postgres instance
+        # RDS postgres instance on private subnet
         rds.DatabaseInstance(
             self,
             "TcaDatabase",
@@ -104,7 +102,6 @@ class TcaStack(cdk.Stack):
             backup_retention=cdk.Duration.days(1),
             credentials=rds.Credentials.from_secret(rds_secret)
         )
-        """
 
 
 # Create the app
