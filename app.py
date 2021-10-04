@@ -16,6 +16,7 @@ from aws_cdk import (
     core as cdk,
 )
 
+
 # Tags to assign to all taggable resources
 STACK_TAGS = {
     "app": "tech-challenge-app",
@@ -78,7 +79,8 @@ class TcaStack(cdk.Stack):
             "TcaContainer",
             image=image,
             environment={
-                "VTT_DBHOST": rds_instance.db_instance_endpoint_address
+                "VTT_DBHOST": rds_instance.db_instance_endpoint_address,
+                "VTT_LISTENPORT": "80",
             },
             secrets={
                 "VTT_DBUSER": ecs.Secret.from_secrets_manager(
@@ -90,7 +92,7 @@ class TcaStack(cdk.Stack):
             command=["serve"],
             logging=log_driver,
         )
-        port_mapping = ecs.PortMapping(container_port=3000)
+        port_mapping = ecs.PortMapping(container_port=80)
         container.add_port_mappings(port_mapping)
 
         # Fargate service
