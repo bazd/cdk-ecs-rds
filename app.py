@@ -5,6 +5,7 @@ https://github.com/servian/TechChallengeApp
 By Barry Dawson
 """
 
+import json
 import os
 
 from aws_cdk import (
@@ -15,6 +16,9 @@ from aws_cdk import (
     aws_secretsmanager as secretsmanager,
     core as cdk,
 )
+
+# Name of RDS database user
+DB_USER = "postgres"
 
 # Name of the image from DockerHub to use for the Fargate service
 IMAGE = "servian/techchallengeapp"
@@ -32,13 +36,23 @@ class TcaStack(cdk.Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Secret for RDS
-
-
+        # Secret for RDS username and password
+        secret_template = {"username": DB_USER}
+        rds_secret = secretsmanager.Secret(
+            self,
+            "TcaRdsSecret",
+            description="RDS secret",
+            secret_name="tca-rds-secret",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template=json.dumps(secret_template),
+                generate_string_key="password"
+            )
+        )
+        """
         # VPC with 2 AZs, each with private and public subnets
         vpc = ec2.Vpc(self, "TcaVpc", max_azs=2)
 
-        """
+
         # ECS cluster
         cluster = ecs.Cluster(self, "TcaCluster", vpc=vpc)
 
@@ -67,9 +81,10 @@ class TcaStack(cdk.Stack):
             scale_in_cooldown=cdk.Duration.seconds(60),
             scale_out_cooldown=cdk.Duration.seconds(60),
         )
-        """
 
         # RDS postgres instance
+        rds_secret = secretsmanager.Secret.from_secret_name_v2(
+            self, "db-user", "db-password")
         rds.DatabaseInstance(
             self,
             "TcaDatabase",
@@ -87,8 +102,9 @@ class TcaStack(cdk.Stack):
             removal_policy=cdk.RemovalPolicy.DESTROY,
             deletion_protection=False,
             backup_retention=cdk.Duration.days(1),
+            credentials=rds.Credentials.from_generated_secret(secret)
         )
-
+        """
 
 # Create the app
 app = cdk.App()
