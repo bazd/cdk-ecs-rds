@@ -65,6 +65,7 @@ class TcaStack(cdk.Stack):
                     "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
                                                     rds_secret, "password"),
                 },
+                container_port=3000
             ),
             memory_limit_mib=512,
             public_load_balancer=True,
