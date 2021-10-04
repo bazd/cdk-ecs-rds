@@ -42,10 +42,9 @@ class TcaStack(cdk.Stack):
             self,
             "TcaRdsSecret",
             description="RDS secret",
-            secret_name="tca-rds-secret",
             generate_secret_string=secretsmanager.SecretStringGenerator(
                 secret_string_template=json.dumps(secret_template),
-                generate_string_key="password"
+                generate_string_key="password",
             )
         )
         """
@@ -82,9 +81,8 @@ class TcaStack(cdk.Stack):
             scale_out_cooldown=cdk.Duration.seconds(60),
         )
 
+
         # RDS postgres instance
-        rds_secret = secretsmanager.Secret.from_secret_name_v2(
-            self, "db-user", "db-password")
         rds.DatabaseInstance(
             self,
             "TcaDatabase",
@@ -102,9 +100,10 @@ class TcaStack(cdk.Stack):
             removal_policy=cdk.RemovalPolicy.DESTROY,
             deletion_protection=False,
             backup_retention=cdk.Duration.days(1),
-            credentials=rds.Credentials.from_generated_secret(secret)
+            credentials=rds.Credentials.from_secret_name_v2(rds_secret.secret_name)
         )
         """
+
 
 # Create the app
 app = cdk.App()
