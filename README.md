@@ -12,7 +12,7 @@ The CDK app provisions the following infrastructure in AWS, along with associate
 * An auto-generated secret for the RDS database password
 * An ECS cluster with a load-balanced auto-scaled Fargate task to run the app container
 
-Unfortunately I ran out of time to get the app fully working.  Connecting to the ALB after deployment returns an error - see <https://github.com/bazd/cdk-ecs-rds/issues/8> for details
+Unfortunately I ran out of time to get the app fully working, but it does provision the infrastructure, create the database instance and serve the app from the ALB
 
 ## How to deploy
 
@@ -69,24 +69,15 @@ Mac / Linux:
     1. The terminal window will display the status of the deployment of each resource
     1. You can optionally log in to the AWS Console and see that a CloudFormation stack has been created
 1. Wait for the deployment to complete - it should take about 10 mins
-    1. When all resources have finished deploying, 2 outputs will be displayed.  These are the Load Balancer DNS name and the ECS Service URL, and can be used to connect to the app (Unfortunately I wasn't able to get the app working, so connecting to this endpoint will return an error)
-
-Note: The app container will have been started with the "updatedb -s" option to prove that connectivity to RDS is ok.  If you want the app to start serving requests, you can do the following:
-1. Edit `app.py`
-1. Comment out this line `command=["updatedb", "-s"],`
-1. Remove comment from this line `# command=["serve"],`
-1. Save the file
-1. Run `cdk synth`
-1. Run `cdk deploy`
-
-The app container will now be reprovisioned to start with the `serve` option, although the endpoint will still return an error.  See https://github.com/bazd/cdk-ecs-rds/issues/9 for more details
+    1. When all resources have finished deploying, 2 outputs will be displayed.  These are the Load Balancer DNS name and the Service URL, and can be used to connect to the app
+    1. Copy the Service URL into a web browser to access the app front end. (Unfortunately the app is not fully functional, but you should see a _servian logo and a To Do heading)
 
 ## How to delete
 
 If you want to completely remove all resources, do the following:
 
 1. Run `cdk destroy` then `y` to confirm
-2. From the AWS console, manually delete any CloudWatch log groups with a prefix of `TcaStack-TcaTaskTcaContainerLogGroup`
+2. From the AWS console, manually delete any CloudWatch log groups with a prefix of `TcaStack-TcaTask`
 
 ## Future improvements
 
@@ -98,7 +89,9 @@ Potential improvements that can be added as required
 * CI/CD for deployment
 * Nice DNS cname record pointing to the ALB name
 * RDS storage autoscaling
+* The healthcheck settings for the ALB target group should be configured to use the `/healthcheck/` endpoint and not the default `/`
 * Monitoring
+* The `updatedb` task should only be executed in a new environment and not with every deployment
 
 ## Useful CDK commands
 
