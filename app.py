@@ -74,26 +74,45 @@ class TcaStack(cdk.Stack):
         task_definition = ecs.FargateTaskDefinition(
             self, "TcaTask", cpu=256, memory_limit_mib=512)
         image = ecs.ContainerImage.from_registry("servian/techchallengeapp")
-        log_driver = ecs.LogDriver.aws_logs(stream_prefix="tca")
-        container = task_definition.add_container(
-            "TcaContainer",
+
+        # Config for the containers
+        container_port = 80
+        environment = {
+            "VTT_DBHOST": rds_instance.db_instance_endpoint_address,
+            "VTT_LISTENHOST": "0.0.0.0",
+            "VTT_LISTENPORT": str(container_port),
+        }
+        secrets = {
+            "VTT_DBUSER": ecs.Secret.from_secrets_manager(
+                rds_secret, "username"),
+            "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
+                rds_secret, "password"),
+        }
+        updatedb_log = ecs.LogDriver.aws_logs(stream_prefix="tca/updatedb")
+        serve_log = ecs.LogDriver.aws_logs(stream_prefix="tca/serve")
+
+        # Add UpdateDb container to task
+        updatedb_container = task_definition.add_container(
+            "TcaUpdatedbContainer",
             image=image,
-            environment={
-                "VTT_DBHOST": rds_instance.db_instance_endpoint_address,
-                "VTT_LISTENPORT": "80",
-            },
-            secrets={
-                "VTT_DBUSER": ecs.Secret.from_secrets_manager(
-                    rds_secret, "username"),
-                "VTT_DBPASSWORD": ecs.Secret.from_secrets_manager(
-                    rds_secret, "password"),
-            },
+            environment=environment,
+            secrets=secrets,
             command=["updatedb", "-s"],
-            # command=["serve"],
-            logging=log_driver,
+            logging=updatedb_log,
+            essential=False,
         )
-        port_mapping = ecs.PortMapping(container_port=80)
-        container.add_port_mappings(port_mapping)
+
+        # Add serve container to task
+        serve_container = task_definition.add_container(
+            "TcaServeContainer",
+            image=image,
+            environment=environment,
+            secrets=secrets,
+            command=["serve"],
+            logging=serve_log,
+        )
+        port_mapping = ecs.PortMapping(container_port=container_port)
+        serve_container.add_port_mappings(port_mapping)
 
         # Fargate service
         service = ecs_patterns.ApplicationLoadBalancedFargateService(
